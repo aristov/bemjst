@@ -1,4 +1,4 @@
-bemjst
+BEMJST
 ======
 
 BEM JavaScript transformations
