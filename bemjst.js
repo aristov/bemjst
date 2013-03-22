@@ -1,35 +1,19 @@
-/**
- * TODO
- *
- * +- удалять предикаты true (и убрать проверку)
- * переписать BEMHTML
- *
- * создавать ключи в this._pi только тех элементов и мод, для которых есть шаблоны
- * отличать isTrue, isFalse от кастомных проверок
- * оптимизировать local и apply
- * попробовать переписать циклы на forEach и сравнить производительность
- *
- * интегрировать базовые шаблоны в ядро?
- *
- * */
-
 var BEMJST = {
 
     _pp: [],
     _ps: [],
     _bs: [],
 
-    _pi: null,
     _ops: [],
+    _tree: {},
 
     _rand: '__rand-' + +new Date(),
 
     _inited: false,
+
     _idx: undefined,
 
     ctx: null,
-
-    _graph: {},
 
     isTrue: function(val) {
         return !!val;
@@ -49,10 +33,7 @@ var BEMJST = {
 
     build: function(ctx) {
 
-        //var ts = +new Date();
         this._inited || this.init();
-        //alert(+new Date() - ts); // _mode = 2ms // block + _mode = 5ms // block + elem + _mode = ~65ms
-
         return this._apply(this.ctx = ctx);
 
     },
@@ -82,11 +63,12 @@ var BEMJST = {
                     result[key] = obj;
                     while (++i < l) obj[keys[i]] = obj = {};
                     obj[keys[i]] = val;
-                } else
+                } else {
                     result[key] = val;
-            } else
+                }
+            } else {
                 result['_mode'] = key;
-
+            }
         }
 
         return result;
@@ -132,7 +114,6 @@ var BEMJST = {
             ps = this._ps,
             l = ps.length,
             blocks = {},
-            elems = {},
             modes = {};
 
         while (++i < l) {
@@ -160,33 +141,43 @@ var BEMJST = {
 
             if ('block' in obj && !('elem' in obj)) obj.elem = this.isFalse;
 
-            /*obj.block && (this._graph[obj.block] || (this._graph[obj.block] = {}));
-            obj.block && obj._mode &&
-                (this._graph[obj.block][obj._mode]?
-                    this._graph[obj.block][obj._mode].push(i):
-                    (this._graph[obj.block][obj._mode] = [i]));*/
-
-            this._pushKeyIdx(obj, blocks, 'block', i);
-            //this._pushKeyIdx(obj, elems, 'elem', i);
-            this._pushKeyIdx(obj, modes, '_mode', i);
+            pushKeyIdx(blocks, 'block');
+            pushKeyIdx(modes, '_mode');
 
             this.isEmptyObject(obj) || op.push(obj);
 
             this._ops.push(op);
         }
 
-        this._merge(blocks);
-        //this._merge(elems);
-        this._merge(modes);
+        function pushKeyIdx(res, key) {
+            if (key in obj) {
+                var val = obj[key];
+                if (typeof val === 'string') delete obj[key];
+                else val = '?';
+            } else  {
+                val = '?';
+            }
+            res[val]? res[val].push(i): (res[val] = [i]);
+        }
 
-        //this._pi = this._intersect(blocks, elems, modes);
-        this._pi = this._intersect(blocks, modes);
+        this._buildTree(blocks, modes);
 
         return this._inited = true;
 
     },
 
-    _intersect: function(blocks, modes) {
+    _buildTree: function(blocks, modes) {
+
+        function merge(obj) {
+            if (obj['?'] && obj['?'].length) {
+                for (var key in obj) {
+                    if (key !== '?') {
+                        obj[key] = obj['?'].concat(obj[key]);
+                        obj[key].sort(function(a, b) { return a - b });
+                    }
+                }
+            }
+        }
 
         function intersect(arr1, arr2) {
             return arr1.filter(function(idx) {
@@ -194,67 +185,17 @@ var BEMJST = {
             });
         }
 
-        var blockKeys = {};
+        merge(blocks);
+        merge(modes);
+
+        var tree = this._tree;
 
         for (var block in blocks) {
-            var modeKeys = blockKeys[block] || (blockKeys[block] = {});
+            var modeKeys = tree[block] || (tree[block] = {});
             for (var mode in modes) {
                 modeKeys[mode] = intersect(blocks[block], modes[mode]);
             }
         }
-
-        return blockKeys;
-
-    },
-
-    /*_intersect: function(blocks, elems, modes) {
-
-        function intersect(arr1, arr2) {
-            return arr1.filter(function(idx) {
-                return arr2.indexOf(idx) > -1;
-            });
-        }
-
-        var blockKeys = {};
-
-        for (var block in blocks) {
-            var elemKeys = blockKeys[block] || (blockKeys[block] = {});
-
-            for (var elem in elems) {
-                var modeKeys = elemKeys[elem] || (elemKeys[elem] = {}),
-                    elemIndexes = intersect(blocks[block], elems[elem]);
-
-                for (var mode in modes) {
-                    modeKeys[mode] = intersect(elemIndexes, modes[mode]);
-                }
-            }
-        }
-
-        return blockKeys;
-
-    },*/
-
-    _pushKeyIdx: function(obj, res, key, idx) {
-
-        if (key in obj) {
-            var val = obj[key];
-
-            if (typeof val === 'string') delete obj[key];
-            else val = '?';
-        } else val = '?';
-
-        res[val]? res[val].push(idx): (res[val] = [idx]);
-
-    },
-
-    _merge: function(obj) {
-
-        if (obj['?'] && obj['?'].length)
-            for (var key in obj)
-                if (key !== '?') {
-                    obj[key] = obj['?'].concat(obj[key]);
-                    obj[key].sort(function(a, b) { return a - b });
-                }
 
     },
 
@@ -283,10 +224,9 @@ var BEMJST = {
 
     _apply: function(ctx, _idx) {
 
-        var pi = this._pi,
-            block = pi[ctx.block] || pi['?'],
-            elem = block, //elem = block[ctx.elem] || block['?'],
-            indexes = elem[ctx._mode] || elem['?'],
+        var tree = this._tree,
+            block = tree[ctx.block] || tree['?'],
+            indexes = block[ctx._mode] || block['?'],
             t = indexes.length;
 
         while (--t > -1) {
@@ -317,7 +257,7 @@ var BEMJST = {
                 var b = this._bs[i];
 
                 if (typeof b === 'function') {
-                    var idx = this._idx,  // local блеать!
+                    var idx = this._idx,
                         result;
 
                     this._idx = i;
@@ -470,7 +410,7 @@ var BEMJST = {
         this._inited || this.init();
 
         return [
-            'BEMJST._pi = ' + this.stringify(this._pi),
+            'BEMJST._tree = ' + this.stringify(this._tree),
             'BEMJST._ops = ' + this.stringify(this._ops),
             'BEMJST._bs = ' + this.stringify(this._bs),
             'BEMJST._inited = true;'
