@@ -1,7 +1,7 @@
 ({
     mustDeps: [
         {
-            block 'i-ecma',
+            block: 'i-ecma',
             elems: [ 'function', 'array' ]
         }
     ]
