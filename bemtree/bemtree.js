@@ -151,7 +151,7 @@ _('default')
         if (cls) v.cls = cls;
 
         var bem = apply('bem');
-        if (bem) v.bem = bem;
+        if (typeof bem !== 'undefined') v.bem = bem;
 
         var jsAttr = apply('jsAttr');
         if (jsAttr) v.jsAttr = jsAttr;
