@@ -123,6 +123,8 @@ _('default')
                 v.block = this.block;
                 v.js = _extend(v.js, apply('js'));
 
+                delete v.extend;
+
                 ce.mix = [ v ].concat(v.mix || [], apply('mix') || []);
             }
 
