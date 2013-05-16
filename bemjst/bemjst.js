@@ -319,9 +319,69 @@ var BEMJST = {
 
         return this.apply({ _mode: '', ctx: ctx });
 
+    },
+
+    isSimple: function(obj) {
+
+        var t = typeof obj;
+        return t === 'string' || t === 'number' || t === 'boolean';
+
     }
 
 };
+
+(function(undefined) {
+
+    var toString = Object.prototype.toString,
+        buf = [];
+
+    BEMJST.isArray = function(obj) {
+
+       return toString.call(obj) === "[object Array]";
+
+    }
+
+    BEMJST._buildHtml = function(v) {
+
+        if (this.isSimple(v)) {
+            (v && v !== true || v === 0) && buf.push(v);
+
+        } else if (this.isArray(v)) {
+            var i = 0,
+                l = v.length;
+
+            while(i < l) this._buildHtml(v[i++]);
+
+        } else {
+            var tag = v.tag;
+
+            tag === undefined && (tag = 'div');
+
+            if (tag) {
+                buf.push('<', tag, '>');
+
+                var content = v.content;
+
+                if (content || content === 0) {
+                    this._buildHtml(content);
+                }
+
+                buf.push('</', tag, '>');
+            }
+        }
+
+    }
+
+    BEMJST.buildHtml = function(v) {
+
+        buf.length = 0;
+        this._buildHtml(v);
+
+        return buf.join('');
+
+    }
+
+})();
 
 
 (function(undefined) {
