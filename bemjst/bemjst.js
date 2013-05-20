@@ -333,7 +333,8 @@ var BEMJST = {
 (function(undefined) {
 
     var toString = Object.prototype.toString,
-        buf = [];
+        buf = [],
+        block;
 
     BEMJST.isArray = function(obj) {
 
@@ -341,33 +342,119 @@ var BEMJST = {
 
     }
 
+    function buildBEMClasses(block, elem, mods, elemMods, addItem) {
+
+        var result = [];
+
+        if (elem) {
+            var elemClass = block + '__' + elem;
+            addItem && result.push(elemClass);
+            if (elemMods) {
+                for (var elemMod in elemMods) {
+                    result.push(elemClass + '_' + elemMod + '_' + elemMods[elemMod]);
+                }
+            }
+        } else {
+            addItem && result.push(block);
+            if (mods) {
+                for (var mod in mods) {
+                    result.push(block + '_' + mod + '_' + mods[mod]);
+                }
+            }
+        }
+
+        return result.join(' ');
+
+    }
+
     BEMJST._buildHtml = function(v) {
 
         if (this.isSimple(v)) {
-            (v && v !== true || v === 0) && buf.push(v);
+            if (v && v !== true || v === 0) buf.push(v);
 
         } else if (this.isArray(v)) {
             var i = 0,
                 l = v.length;
 
-            while(i < l) this._buildHtml(v[i++]);
+            while (i < l) this._buildHtml(v[i++]);
 
         } else {
             var tag = v.tag;
 
             tag === undefined && (tag = 'div');
 
+            if (v.block) block = v.block;
+
             if (tag) {
-                buf.push('<', tag, '>');
+                buf.push('<', tag);
 
-                var content = v.content;
+                var elem = v.elem,
+                    klass = [];
 
-                if (content || content === 0) {
-                    this._buildHtml(content);
+                if (v.bem !== false && (v.block || elem)) {
+
+                    /*if (elem) {
+                        var elemClass = block + '__' + elem,
+                            elemMods = v.elemMods;
+                        klass.push(elemClass);
+                        if (elemMods) {
+                            for (var elemMod in elemMods) {
+                                klass.push(elemClass + '_' + elemMod + '_' + elemMods[elemMod]);
+                            }
+                        }
+                    } else {
+                        klass.push(block);
+                        var mods = v.mods;
+                        if (mods) {
+                            for (var mod in mods) {
+                                klass.push(block + '_' + mod + '_' + mods[mod]);
+                            }
+                        }
+                    }*/
+
+                    klass.push(buildBEMClasses(block, elem, v.mods, v.elemMods, true));
+
+                    var mix = v.mix;
+
+                    if (mix) {
+                        this.isArray(mix) || (mix = [mix]);
+                        for (var i = 0; i < mix.length; i++) {
+                            var item = mix[i],
+                                mixed = buildBEMClasses(
+                                    item.block || block,
+                                    item.elem || (item.block ? undefined : elem),
+                                    elem && !item.block ? undefined : item.mods,
+                                    item.elemMods,
+                                    item.block || item.elem);
+                            mixed && klass.push(mixed);
+                        }
+                    }
                 }
 
-                buf.push('</', tag, '>');
+                var cls = v.cls;
+
+                if (cls) klass.push(cls);
+
+                if (klass.length) buf.push(' class="', klass.join(' '), '"');
+
+                var attrs = v.attrs;
+
+                if (attrs) {
+                    for (var key in attrs) {
+                        buf.push(' ', key, '="', attrs[key], '"');
+                    }
+                }
+
+                buf.push('>');
             }
+
+            var content = v.content;
+
+            if (content || content === 0) {
+                this._buildHtml(content);
+            }
+
+            if (tag) buf.push('</', tag, '>');
         }
 
     }
