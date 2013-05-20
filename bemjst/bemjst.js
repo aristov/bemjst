@@ -326,6 +326,16 @@ var BEMJST = {
         var t = typeof obj;
         return t === 'string' || t === 'number' || t === 'boolean';
 
+    },
+
+    attrEscape: function(s) {
+
+        var ts = { '"': '&quot;', '&': '&amp;', '<': '&lt;', '>': '&gt;' };
+
+        return ('' + s).replace(/["&<>]/g, function(t) {
+            return ts[t] || t;
+        });
+
     }
 
 };
@@ -334,7 +344,11 @@ var BEMJST = {
 
     var toString = Object.prototype.toString,
         buf = [],
-        block;
+        block,
+        SHORT_TAGS = {
+            area : 1, base : 1, br : 1, col : 1, command : 1, embed : 1, hr : 1, img : 1,
+            input : 1, keygen : 1, link : 1, meta : 1, param : 1, source : 1, wbr : 1
+        };
 
     BEMJST.isArray = function(obj) {
 
@@ -389,72 +403,78 @@ var BEMJST = {
                 buf.push('<', tag);
 
                 var elem = v.elem,
-                    klass = [];
+                    klass = [],
+                    jsParams;
 
                 if (v.bem !== false && (v.block || elem)) {
 
-                    /*if (elem) {
-                        var elemClass = block + '__' + elem,
-                            elemMods = v.elemMods;
-                        klass.push(elemClass);
-                        if (elemMods) {
-                            for (var elemMod in elemMods) {
-                                klass.push(elemClass + '_' + elemMod + '_' + elemMods[elemMod]);
-                            }
-                        }
-                    } else {
-                        klass.push(block);
-                        var mods = v.mods;
-                        if (mods) {
-                            for (var mod in mods) {
-                                klass.push(block + '_' + mod + '_' + mods[mod]);
-                            }
-                        }
-                    }*/
-
                     klass.push(buildBEMClasses(block, elem, v.mods, v.elemMods, true));
+
+                    var js = v.js;
+
+                    if (js) (jsParams = {})[ elem ? block + '__' + elem : block ] = js === true ? {} : js;
 
                     var mix = v.mix;
 
                     if (mix) {
                         this.isArray(mix) || (mix = [mix]);
                         for (var i = 0; i < mix.length; i++) {
+
                             var item = mix[i],
+                                itemBlock = item.block || block,
+                                itemElem = item.elem || (item.block ? undefined : elem),
+                                addItem = !!(item.block || item.elem),
                                 mixed = buildBEMClasses(
-                                    item.block || block,
-                                    item.elem || (item.block ? undefined : elem),
+                                    itemBlock,
+                                    itemElem,
                                     elem && !item.block ? undefined : item.mods,
                                     item.elemMods,
-                                    item.block || item.elem);
+                                    addItem);
+
                             mixed && klass.push(mixed);
+
+                            if (item.js && addItem) {
+                                jsParams || (jsParams = {});
+                                jsParams[ itemElem ? itemBlock + '__' + itemElem : itemBlock ] = item.js === true ? {} : item.js;
+                            }
                         }
                     }
                 }
+
+                if (jsParams) klass.push('i-bem');
 
                 var cls = v.cls;
 
                 if (cls) klass.push(cls);
 
-                if (klass.length) buf.push(' class="', klass.join(' '), '"');
+                if (klass.length) buf.push(' class="', this.attrEscape(klass.join(' ')), '"');
+
+                if (jsParams) buf.push(' ', v.jsAttr || 'onclick', '="', this.attrEscape(JSON.stringify(jsParams)), '"');
 
                 var attrs = v.attrs;
 
                 if (attrs) {
                     for (var key in attrs) {
-                        buf.push(' ', key, '="', attrs[key], '"');
+                        buf.push(' ', key, '="', this.attrEscape(attrs[key]), '"');
                     }
                 }
 
-                buf.push('>');
             }
 
-            var content = v.content;
+            if (SHORT_TAGS[tag]) {
+                buf.push('/>');
+            } else {
+                if (tag) buf.push('>');
 
-            if (content || content === 0) {
-                this._buildHtml(content);
+                var content = v.content;
+
+                if (content || content === 0) {
+                    this._buildHtml(content);
+                }
+
+                if (tag) buf.push('</', tag, '>');
             }
 
-            if (tag) buf.push('</', tag, '>');
         }
 
     }
