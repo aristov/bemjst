@@ -383,6 +383,8 @@ var BEMJST = {
 
     BEMJST._buildHtml = function(v) {
 
+        var extend;
+
         if (this.isSimple(v)) {
             if (v && v !== true || v === 0) buf.push(v);
 
@@ -391,6 +393,32 @@ var BEMJST = {
                 l = v.length;
 
             while (i < l) this._buildHtml(v[i++]);
+
+        } else if (extend = v.extend) {
+            var mix = extend.mix || [],
+                content = v.content;
+
+            this.isArray(mix) || (mix = [mix]);
+
+            mix.push({
+                block: v.block || block,
+                elem: v.elem,
+                mods: v.mods,
+                elemMods: v.elemMods,
+                js: v.js
+            });
+
+            extend.mix = v.mix ? mix.concat(this.isArray(v.mix) ? v.mix : [ v.mix ]) : mix;
+
+            if (v.content && !extend.content) {
+                var _buf = buf;
+                buf = [];
+                this._buildHtml(v.content);
+                extend.content = buf.join('');
+                buf = _buf;
+            }
+
+            this._buildHtml(extend);
 
         } else {
             var tag = v.tag;
