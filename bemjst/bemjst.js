@@ -16,19 +16,25 @@ var BEMJST = {
     ctx: null,
 
     isTrue: function(val) {
+
         return !!val;
+
     },
 
     isFalse: function(val) {
+
         return !val;
+
     },
 
     isNot: function(val) {
+
         var result = function(cVal) {
                 return val !== cVal;
             };
         result._isNot = val;
         return result;
+
     },
 
     build: function(ctx) {
@@ -352,7 +358,7 @@ var BEMJST = {
 
     BEMJST.isArray = function(obj) {
 
-       return toString.call(obj) === "[object Array]";
+       return toString.call(obj) === '[object Array]';
 
     }
 
