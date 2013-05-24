@@ -98,6 +98,7 @@ _('default')
 
         if (wrap && !v._wrap) {
             v._wrap = true;
+            v.block || (v.block = this.block);
             result = applyCtx(wrap);
             delete v._wrap;
 
