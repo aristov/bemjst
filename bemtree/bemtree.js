@@ -144,7 +144,7 @@ _('default')
 
         // html
         var tag = apply('tag');
-        if (tag) v.tag = tag;
+        if (typeof tag !== 'undefined') v.tag = tag;
 
         var attrs = apply('attrs');
         if (attrs) v.attrs = this._.extend(attrs, v.attrs);
